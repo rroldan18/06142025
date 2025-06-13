@@ -1,0 +1,344 @@
+Training Basic configuration RSTvX Hayup labs
+
+
+R4: (Interface config IP)
+conf t
+enable secret pass
+service password-encryption
+no logging console
+no ip domain-lookup
+line console 0
+login
+password pass
+exec-timeout 0 0
+line vty 0 4
+login
+password pass
+exec-timeout 0 0
+int e1/2
+no shut
+ip add 10.1.1.10 255.255.255.252
+int e1/0
+no shut
+ip add 10.1.4.5 255.255.255.252
+int e1/1
+no shut
+ip add 10.1.4.9 255.255.255.252
+do sh ip int brief | ex una	---> verify
+
+
+D1: (Interface config IP)
+conf t
+enable secret pass
+service password-encryption
+no logging console
+no ip domain-lookup
+line console 0
+login
+password pass
+exec-timeout 0 0
+line vty 0 4
+login
+password pass
+exec-timeout 0 0
+int e1/1
+no shut
+ip add 10.1.4.6 255.255.255.252
+do sh ip int brief | ex una	---> verify
+
+D1: (VLAN creation with ip address)
+conf t
+vlan 10
+name homevlannov6
+exit
+int vlan 10
+ip add 10.2.1.1 255.255.255.252
+no shut
+exit
+vlan 20
+name vlan20.com.ph
+exit
+int vlan 20
+ip add 10.2.2.1 255.255.255.252
+no shut
+exit
+vlan 100
+name server
+exit
+int vlan 100
+ip add 192.168.1.129 255.255.255.128
+no shut
+exit
+do sh ip int brief | ex una	---> verify
+
+
+D2: (Interface config IP)
+conf t
+enable secret pass
+service password-encryption
+no logging console
+no ip domain-lookup
+line console 0
+login
+password pass
+exec-timeout 0 0
+line vty 0 4
+login
+password pass
+exec-timeout 0 0
+int e1/1
+no shut
+ip add 10.1.4.10 255.255.255.252
+do sh ip int brief | ex una	---> verify
+
+D2: (VLAN creation with ip address)
+config t 
+vlan 10
+ name homevlannov6
+ exit
+int vlan 10
+ip add 10.2.1.2 255.255.255.252
+no shut
+exit
+vlan 20
+name vlan20.com.ph
+exit
+int vlan 20
+ip add 10.2.2.2 255.255.255.252
+no shut
+exit
+vlan 100
+name server
+exit
+int vlan 100
+ip add 192.168.1.130 255.255.255.128
+exit
+do sh ip int brief | ex una	---> verify
+
+
+A1: (basic config)
+conf t
+hostname A1
+enable secret pass
+service password-encryption
+no logging console
+no ip domain-lookup
+line vty 0 4
+login
+password pass
+exec-timeout 0 0 
+line console 0
+login
+password pass
+exec-timeout 0 0
+
+A1: (Vlan creation)
+vlan 100
+name server
+exit
+int vlan 100
+ip add 192.168.1.131 255.255.255.128
+no shut
+exit
+
+A2: (basic config)
+conf t
+hostname A2
+enable secret pass
+service password-encryption
+no logging console
+no ip domain-lookup
+line console 0
+login
+password pass
+exec-timeout 0 0
+line vty 0 4
+login
+password pass
+exec-timeout 0 0
+
+A2: (Vlan creation)
+conf t
+vlan 100
+name server
+exit
+int vlan 100
+ip add 192.168.1.132 255.255.255.128
+no shut
+exit
+
+do ping 192.168.1.132 ---> verify
+do ping 192.168.1.131 ---> verify
+do ping 192.168.1.130 ---> verify
+do ping 192.168.1.129 ---> verify
+
+Give IP Address to P1 and P2, Via DHCP server on D1/D2 using load balance.
+
+D1: Create DHCP + Switched virtual interface (will give .101 - .199)
+conf t
+ip dhcp excluded-add 10.2.1.200 10.2.1.254
+ip dhcp pool vlan10
+network 10.2.1.0 255.255.255.0
+default-router 10.2.1.1
+domain-name rivanit.com
+dns-server 8.8.8.8
+option 150 ip 1.1.1.1
+
+
+D2: Create DHCP (will give .200 - .249)
+conf t
+ip dhcp excluded-address 10.2.1.1 - 10.2.1.199
+ip dhcp pool vlan 10
+network 10.2.1.0 255.255.255.0
+default-router 10.2.1.2
+domain-name rivanit.com
+dns-server 8.8.8.8
+option 150 ip 1.1.1.1
+
+A1, A2: Ask for Vlan and Move Port:
+
+A1:
+conf t
+int e0/0
+switchport mode access
+switchport access vlan 10
+do sh vlan brief  ---> verify
+
+A2:
+conf t
+int e1/0
+switchport mode access
+switchport access vlan 10
+do sh vlan brief   ---> verify
+
+P1:
+conf t
+int e0/0
+ip add dhcp
+no shut
+do sh ip int brief |ex una  ---> verify
+
+P2:
+conf t
+int e1/0
+ip add dhcp
+no shut
+do sh ip int brief | ex una  ---> verify
+
+
+--------------------------------------------
+Basic Routing Two Commandments.
+1.) Thou shall: "Ping DIKIT!"
+2.) Thou shall: "Route Not Dikit"
+
+IP route "network/subnet" subnetMask 1sthopIP metric
+
+Static Route:
+
+@R1: [ tell r1 how to go to 10.1.1.4/30 and 10.1.1.8/30 ]
+sh ip route static  --> verify
+sh ip route connected | inc C	--> verify
+conf t
+ip route 10.1.1.4 255.255.255.252 10.1.1.2 1
+ip route 10.1.1.8 255.255.255.252 10.1.1.2 1
+exit
+do ping 
+
+
+@R2: [ tell r2 how to go 10.1.1.8/30 ]
+sh ip route static  --> verify
+sh ip route connected | inc C	--> verify
+conf t
+ip route 10.1.1.8 255.255.255.252 10.1.1.6 1
+exit
+do ping
+
+
+@R3: [ tell r3 how to go 10.1.1.0/30 ]
+sh ip route static  --> verify
+sh ip route connected | inc C	--> verify
+conf t
+ip route 10.1.1.0 255.255.255.252 10.1.1.5 1
+exit
+do ping
+
+
+@R4: [ tell r4 how to go 10.1.1.4/30 and 10.1.1.0/30 ]
+sh ip route static  --> verify
+sh ip route connected | inc C	--> verify
+conf t
+ip route 10.1.1.4 255.255.255.252 10.1.1.9 1
+ip route 10.1.1.0 255.255.255.252 10.1.1.9 1
+do ping 
+
+Default route vs static routes:
+D1/D2: routes they need to know: (coming from R1,R2,R3)
+10.1.1.0/30
+10.1.1.4/30
+10.1.1.8/30
+
+D1: 
+conf t
+ip route 10.1.1.0 255.255.255.252 10.1.4.5
+ip route 10.1.1.4 255.255.255.255 10.1.4.5
+ip route 10.1.1.8 255.255.255.252 10.1.4.5
+end
+sh ip route connected |inc C
+
+
+D2:
+conf t
+ip route 10.1.1.0 255.255.255.252 10.1.1.9
+ip route 10.1.1.4 255.255.255.252 10.1.1.9
+ip route 10.1.1.8 255.255.255.252 10.1.1.9
+end
+sh ip route connected |inc C
+
+R1,R2,R3: routes they need to know: (coming from D1,D2)
+10.1.4.4/30
+10.1.4.8/30
+10.2.1.0/30
+10.2.2.0/30
+192.168.1.128/25
+
+@R1:
+ip route 10.1.4.4 255.255.255.252 10.1.1.2
+ip route 10.1.4.8 255.255.255.252 10.1.1.2
+ip route 10.2.1.0 255.255.255.252 10.1.1.2
+ip route 10.2.2.0 255.255.255.252 10.1.1.2
+ip route 192.168.1.128 255.255.255.128 10.1.1.2
+
+@R2:
+ip route 10.1.4.4 255.255.255.252 10.1.1.6
+ip route 10.1.4.8 255.255.255.252 10.1.1.6
+ip route 10.2.1.0 255.255.255.252 10.1.1.6
+ip route 10.2.2.0 255.255.255.252 10.1.1.6
+ip route 192.168.1.128 255.255.255.128 10.1.1.6
+
+@R3:
+ip route 10.1.4.4 255.255.255.252 10.1.1.10
+ip route 10.1.4.8 255.255.255.252 10.1.1.10
+ip route 10.2.1.0 255.255.255.252 10.1.1.10
+ip route 10.2.2.0 255.255.255.252 10.1.1.10
+ip route 192.168.1.128 255.255.255.128 10.1.1.10
+
+
+R4: (coming from D1,D2)
+10.2.1.0/30
+10.2.2.0/30
+192.168.1.128/25
+
+@R4:
+conf t
+!primaryroutes:
+ip route 10.2.1.0 255.255.255.252 10.1.4.6 1
+ip route 10.2.2.0 255.255.255.252 10.1.4.6 1
+ip route 192.168.1.128 255.255.255.128 10.1.4.6 1
+conf t
+!backuproutes:
+ip route 10.2.1.0 255.255.255.252 10.1.4.10 10
+ip route 10.2.2.0 255.255.255.252 10.1.4.10 10
+ip route 192.168.1.128 255.255.255.128 10.1.4.10 10
+
+
+
