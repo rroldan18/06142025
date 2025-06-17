@@ -187,8 +187,8 @@ option 150 ip 1.1.1.1
 
 D2: Create DHCP (will give .200 - .249)
 conf t
-ip dhcp excluded-address 10.2.1.1 - 10.2.1.199
-ip dhcp pool vlan 10
+ip dhcp excluded-add 10.2.1.1 10.2.1.199
+ip dhcp pool vlan10
 network 10.2.1.0 255.255.255.0
 default-router 10.2.1.2
 domain-name rivanit.com
@@ -280,10 +280,10 @@ D1/D2: routes they need to know: (coming from R1,R2,R3)
 D1: 
 conf t
 ip route 10.1.1.0 255.255.255.252 10.1.4.5
-ip route 10.1.1.4 255.255.255.255 10.1.4.5
+ip route 10.1.1.4 255.255.255.252 10.1.4.5
 ip route 10.1.1.8 255.255.255.252 10.1.4.5
 end
-sh ip route connected |inc C
+sh ip route connected |inc C  ---> verify
 
 
 D2:
@@ -302,6 +302,7 @@ R1,R2,R3: routes they need to know: (coming from D1,D2)
 192.168.1.128/25
 
 @R1:
+conf t
 ip route 10.1.4.4 255.255.255.252 10.1.1.2
 ip route 10.1.4.8 255.255.255.252 10.1.1.2
 ip route 10.2.1.0 255.255.255.252 10.1.1.2
@@ -309,6 +310,7 @@ ip route 10.2.2.0 255.255.255.252 10.1.1.2
 ip route 192.168.1.128 255.255.255.128 10.1.1.2
 
 @R2:
+conf t
 ip route 10.1.4.4 255.255.255.252 10.1.1.6
 ip route 10.1.4.8 255.255.255.252 10.1.1.6
 ip route 10.2.1.0 255.255.255.252 10.1.1.6
@@ -316,6 +318,7 @@ ip route 10.2.2.0 255.255.255.252 10.1.1.6
 ip route 192.168.1.128 255.255.255.128 10.1.1.6
 
 @R3:
+conf t
 ip route 10.1.4.4 255.255.255.252 10.1.1.10
 ip route 10.1.4.8 255.255.255.252 10.1.1.10
 ip route 10.2.1.0 255.255.255.252 10.1.1.10
@@ -323,12 +326,14 @@ ip route 10.2.2.0 255.255.255.252 10.1.1.10
 ip route 192.168.1.128 255.255.255.128 10.1.1.10
 
 
-R4: (coming from D1,D2)
+
+R4: (coming from D1,D2) with metric
 10.2.1.0/30
 10.2.2.0/30
 192.168.1.128/25
 
-@R4:
+
+@R4: 
 conf t
 !primaryroutes:
 ip route 10.2.1.0 255.255.255.252 10.1.4.6 1
@@ -339,6 +344,42 @@ conf t
 ip route 10.2.1.0 255.255.255.252 10.1.4.10 10
 ip route 10.2.2.0 255.255.255.252 10.1.4.10 10
 ip route 192.168.1.128 255.255.255.128 10.1.4.10 10
+show ip route static --->verify
 
+
+@P1:
+conf t
+ip route 0.0.0.0 0.0.0.0 10.2.1.1
+int e0/0
+no shut
+ip add 10.2.1.101 255.255.255.0
+show cdp neighbor  ---> verify
+sh ip route static ---> verify
+ping  ---> verify
+
+@P2:
+conf t
+ip route 0.0.0.0 0.0.0.0 10.2.1.2
+int e1/0
+no shut
+ip add 10.2.1.102 255.255.255.0
+show cdp neighbor  ---> verify
+sh ip route static ---> verify
+ping  ---> verify
+
+
+How to config BGP from the scratch:
+@R1:
+conf t
+router bgp 1 
+bgp router-id 1.1.1.1
+bgp log-neighbor-changes
+neighbor 209.9.9.3 remote-as 3
+neighbor 207.7.7.2 remote-as 2 
+neighbor 208.8.8.4 remote-as 4
+network 209.9.9.0 mask 255.255.255.0
+network 207.7.7.0 mask 255.255.255.0
+network 208.8.8.0 mask 255.255.255.0
+network 10.1.1.0 mask 255.255.255.252
 
 
